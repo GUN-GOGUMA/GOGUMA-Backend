@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GOGUMA Chat Demo</title>
+    <style>
+      :root {
+        --bg: #f6f7fb;
+        --card: #ffffff;
+        --border: #d9deea;
+        --text: #1f2937;
+        --muted: #6b7280;
+        --accent: #2563eb;
+        --accent-dark: #1d4ed8;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "Noto Sans KR", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .wrap {
+        max-width: 840px;
+        margin: 40px auto;
+        padding: 0 16px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        padding: 24px;
+        box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+      }
+
+      p {
+        margin: 0 0 20px;
+        color: var(--muted);
+      }
+
+      .row {
+        display: grid;
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      label {
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 12px 14px;
+        font: inherit;
+        background: #fff;
+      }
+
+      textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
+
+      button {
+        border: 0;
+        border-radius: 12px;
+        padding: 12px 18px;
+        font: inherit;
+        font-weight: 700;
+        color: #fff;
+        background: var(--accent);
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: var(--accent-dark);
+      }
+
+      .result {
+        margin-top: 24px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border);
+      }
+
+      .bubble {
+        padding: 16px;
+        border-radius: 16px;
+        margin-bottom: 12px;
+        white-space: pre-wrap;
+      }
+
+      .user {
+        background: #e0ecff;
+      }
+
+      .assistant {
+        background: #f3f4f6;
+      }
+
+      .sources {
+        margin-top: 12px;
+        padding: 14px;
+        border-radius: 14px;
+        background: #fafafa;
+        border: 1px solid var(--border);
+      }
+
+      .sources h2 {
+        margin: 0 0 10px;
+        font-size: 16px;
+      }
+
+      .sources ul {
+        margin: 0;
+        padding-left: 18px;
+      }
+
+      .status {
+        margin-top: 10px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="card">
+        <h1>GOGUMA Chat Demo</h1>
+        <p>Simple browser demo for the <code>/chat/respond</code> API.</p>
+
+        <div class="row">
+          <label for="serverUrl">Server URL</label>
+          <input id="serverUrl" value="http://localhost:3000" />
+        </div>
+
+        <div class="row">
+          <label for="botId">botId (optional)</label>
+          <input id="botId" value="gsm-guide" />
+        </div>
+
+        <div class="row">
+          <label for="channelId">channelId</label>
+          <input id="channelId" value="room-1" />
+        </div>
+
+        <div class="row">
+          <label for="message">message</label>
+          <textarea id="message">Tell me some dorm life tips.</textarea>
+        </div>
+
+        <div class="row">
+          <label for="metadata">metadata (JSON)</label>
+          <textarea id="metadata">{"locale":"ko-KR"}</textarea>
+        </div>
+
+        <button id="sendButton" type="button">Send</button>
+        <div id="status" class="status"></div>
+
+        <div class="result">
+          <div id="userMessage" class="bubble user" hidden></div>
+          <div id="assistantMessage" class="bubble assistant" hidden></div>
+          <div id="sourcesBox" class="sources" hidden>
+            <h2>Sources</h2>
+            <ul id="sourcesList"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const serverUrlInput = document.getElementById("serverUrl");
+      const botIdInput = document.getElementById("botId");
+      const channelIdInput = document.getElementById("channelId");
+      const messageInput = document.getElementById("message");
+      const metadataInput = document.getElementById("metadata");
+      const sendButton = document.getElementById("sendButton");
+      const statusText = document.getElementById("status");
+      const userMessageBox = document.getElementById("userMessage");
+      const assistantMessageBox = document.getElementById("assistantMessage");
+      const sourcesBox = document.getElementById("sourcesBox");
+      const sourcesList = document.getElementById("sourcesList");
+
+      function setStatus(message) {
+        statusText.textContent = message;
+      }
+
+      function renderSources(sources) {
+        sourcesList.innerHTML = "";
+
+        if (!sources || sources.length === 0) {
+          sourcesBox.hidden = true;
+          return;
+        }
+
+        for (const source of sources) {
+          const item = document.createElement("li");
+          item.textContent = `${source.title} (${source.id})`;
+          sourcesList.appendChild(item);
+        }
+
+        sourcesBox.hidden = false;
+      }
+
+      sendButton.addEventListener("click", async () => {
+        let metadata = {};
+
+        try {
+          metadata = metadataInput.value.trim() ? JSON.parse(metadataInput.value) : {};
+        } catch {
+          setStatus("metadata must be valid JSON.");
+          return;
+        }
+
+        const payload = {
+          botId: botIdInput.value.trim() || undefined,
+          channelId: channelIdInput.value.trim() || undefined,
+          message: messageInput.value.trim(),
+          metadata,
+        };
+
+        if (!payload.message) {
+          setStatus("message is required.");
+          return;
+        }
+
+        userMessageBox.hidden = false;
+        userMessageBox.textContent = payload.message;
+        assistantMessageBox.hidden = true;
+        sourcesBox.hidden = true;
+        setStatus("Waiting for response...");
+
+        try {
+          const response = await fetch(`${serverUrlInput.value.trim()}/chat/respond`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const result = await response.json();
+
+          if (!response.ok || !result.ok) {
+            throw new Error(result.message || "Request failed.");
+          }
+
+          assistantMessageBox.hidden = false;
+          assistantMessageBox.textContent = result.data.reply;
+          renderSources(result.data.sources);
+          setStatus(`Done · model: ${result.data.model}`);
+        } catch (error) {
+          assistantMessageBox.hidden = false;
+          assistantMessageBox.textContent =
+            error instanceof Error ? error.message : "Unknown error.";
+          setStatus("Request failed.");
+        }
+      });
+    </script>
+  </body>
+</html>
+
