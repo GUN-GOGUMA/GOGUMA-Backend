@@ -1,4 +1,7 @@
-# GOGUMA-Backend
+<div align="center">
+  <img src="https://raw.githubusercontent.com/GUN-GOGUMA/.github/refs/heads/main/profile/GUNGOGUMA.png" width="100" height="100">
+  <h1>GOGUMA Backend</h1>
+</div>
 
 Chatbot backend project for serving multiple channels through one server.
 
